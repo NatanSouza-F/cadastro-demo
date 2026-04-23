@@ -1,11 +1,10 @@
 """
 BSB Contabilidade - Plataforma de Cadastro Inteligente
-MVP Streamlit com tema neon escuro e UX imersiva.
+MVP Streamlit com tema neon escuro, UX imersiva e APIs automáticas.
 """
 
 import streamlit as st
 import requests
-import json
 import re
 from datetime import datetime
 from typing import Dict, Any
@@ -21,31 +20,50 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CSS NEON ESCURO (NÍVEL NASA)
+# CSS NEON ESCURO COM FONTE INTER (CLEAN) E EFEITO "PULSE"
 # =============================================================================
 st.markdown("""
 <style>
-    /* Fundo principal com gradiente escuro e textura sutil */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * {
+        font-family: 'Inter', sans-serif !important;
+    }
+
     .stApp {
         background: linear-gradient(135deg, #0a0a0a 0%, #111111 100%);
         color: #e0e0e0;
-        font-family: 'Inter', sans-serif;
     }
 
-    /* Cabeçalho principal com efeito neon */
-    h1 {
-        color: #00f2fe;
-        text-shadow: 0 0 10px #00f2fe, 0 0 20px #4facfe;
-        font-weight: 800;
-        letter-spacing: -0.5px;
+    /* Título principal estilo "Pulse" */
+    .main-title {
+        font-size: 4rem !important;
+        font-weight: 900 !important;
+        letter-spacing: -2px !important;
+        background: linear-gradient(90deg, #00f2fe, #4facfe);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 40px rgba(0,242,254,0.8);
+        margin: 0;
+        padding: 0;
+        line-height: 1.1;
+    }
+    .subtitle {
+        font-size: 1rem;
+        font-weight: 400;
+        color: #7bffe0;
+        margin-top: 0.2rem;
+        margin-bottom: 1rem;
+        text-shadow: 0 0 10px #7bffe0;
     }
 
-    h2, h3, .stSubheader {
+    h1, h2, h3, .stSubheader {
         color: #7bffe0;
         text-shadow: 0 0 5px #7bffe0;
+        font-weight: 600;
     }
 
-    /* Cartões com borda neon suave e vidro */
     .stContainer, div[data-testid="stExpander"], div[data-testid="stForm"] {
         background: rgba(20, 20, 30, 0.7);
         backdrop-filter: blur(10px);
@@ -55,7 +73,6 @@ st.markdown("""
         padding: 20px;
     }
 
-    /* Botões com efeito neon pulsante */
     .stButton > button {
         background: linear-gradient(145deg, #0a0a0a, #1a1a2e);
         border: 2px solid #00f2fe;
@@ -74,35 +91,30 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
-    /* Campos de entrada */
     input, textarea, select, .stNumberInput input {
         background: #0d0d1a !important;
         border: 1px solid #00f2fe66 !important;
         color: #e0e0e0 !important;
         border-radius: 8px !important;
     }
-    input:focus {
+    input:focus, textarea:focus, select:focus {
         border-color: #00f2fe !important;
         box-shadow: 0 0 15px #00f2fe80 !important;
     }
 
-    /* Radio e checkbox */
     .stRadio > div, .stCheckbox > label {
         color: #cccccc !important;
     }
 
-    /* Métricas com glow */
     [data-testid="stMetricValue"] {
         color: #00f2fe;
         text-shadow: 0 0 8px #00f2fe;
     }
 
-    /* Progress bar */
     .stProgress > div > div {
-        background-color: #00f2fe;
+        background: linear-gradient(90deg, #00f2fe, #4facfe);
     }
 
-    /* Efeito de linhas de grade no fundo */
     .stApp::before {
         content: '';
         position: fixed;
@@ -114,6 +126,17 @@ st.markdown("""
                           linear-gradient(90deg, rgba(0,242,254,0.03) 1px, transparent 1px);
         background-size: 40px 40px;
         pointer-events: none;
+    }
+    
+    .lgpd-box {
+        background: rgba(0,242,254,0.05);
+        border-left: 4px solid #00f2fe;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        color: #ccc;
+        margin-bottom: 20px;
+        backdrop-filter: blur(5px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -165,6 +188,20 @@ def consulta_cep(cep: str) -> Dict[str, Any]:
         return response.json()
     except:
         return None
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def consulta_cnae(codigo: str) -> str:
+    if not codigo:
+        return ""
+    codigo_clean = re.sub(r'\D', '', codigo)
+    url = f"https://brasilapi.com.br/api/cnae/v1/{codigo_clean}"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return data.get('descricao', 'CNAE não encontrado')
+    except:
+        return "Descrição não disponível"
 
 # =============================================================================
 # CÁLCULO DE HONORÁRIOS (INTERNO, NÃO EXIBIDO AO CLIENTE)
@@ -238,10 +275,26 @@ def validar_cpf(cpf: str) -> bool:
 # INTERFACE DO USUÁRIO
 # =============================================================================
 def main():
-    # SAUDAÇÃO DE BOAS-VINDAS (NEON)
-    st.title("BSB CONTABILIDADE")
-    st.markdown("### *Seu futuro fiscal começa aqui.*")
+    # Título principal estilo "Pulse"
+    st.markdown('<div class="main-title">BSB Contabilidade</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Inteligência fiscal para acelerar seu futuro.</div>', unsafe_allow_html=True)
     st.markdown("---")
+    
+    # Saudação de boas-vindas
+    st.markdown("""
+    <div style="font-size:1.1rem; margin: 15px 0; color: #e0e0e0;">
+        Seja bem-vindo(a)! Pra que possamos proceder com seu processo, favor preencher as informações cadastrais.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # LGPD
+    st.markdown("""
+    <div class="lgpd-box">
+        🔒 <strong>Segurança e Privacidade (LGPD):</strong> Seus dados estão protegidos pela Lei Geral de Proteção de Dados. 
+        Todas as informações fornecidas são confidenciais e serão utilizadas exclusivamente para elaboração de proposta de serviços contábeis. 
+        Não compartilhamos seus dados com terceiros.
+    </div>
+    """, unsafe_allow_html=True)
     
     progresso = st.progress(st.session_state.step / 3)
     
@@ -294,12 +347,17 @@ def etapa_dados_cadastrais():
                                     'nome_fantasia': dados.get('nome_fantasia', ''),
                                     'natureza_juridica': dados.get('natureza_juridica', {}).get('descricao', ''),
                                     'cnae_principal': dados.get('cnae_fiscal_descricao', ''),
+                                    'cnae_codigo': dados.get('cnae_fiscal', ''),
                                     'cep': dados.get('cep', ''),
                                     'logradouro': dados.get('logradouro', ''),
                                     'bairro': dados.get('bairro', ''),
                                     'municipio': dados.get('municipio', ''),
                                     'uf': dados.get('uf', '')
                                 })
+                                # Se o CNAE descrição veio vazio, tenta consultar pela API de CNAE
+                                if not dados.get('cnae_fiscal_descricao') and dados.get('cnae_fiscal'):
+                                    desc_cnae = consulta_cnae(dados.get('cnae_fiscal'))
+                                    st.session_state.dados_cadastrais['cnae_principal'] = desc_cnae
                                 st.success("Empresa localizada!")
                                 st.rerun()
                             else:
@@ -349,7 +407,7 @@ def etapa_dados_cadastrais():
                 'municipio': municipio,
                 'uf': uf
             })
-        else:
+        else:  # Pessoa Física
             st.subheader("Dados da Pessoa Física")
             col1, col2 = st.columns(2)
             with col1:
@@ -370,6 +428,8 @@ def etapa_dados_cadastrais():
                                 'uf': endereco.get('state', '')
                             })
                             st.rerun()
+                    else:
+                        st.error("CEP inválido.")
                 logradouro = st.text_input("Logradouro", key='logradouro_pf')
                 bairro = st.text_input("Bairro", key='bairro_pf')
                 municipio = st.text_input("Município", key='municipio_pf')
@@ -394,16 +454,12 @@ def etapa_dados_cadastrais():
         with col_btn2:
             if st.button("Próximo ➡", type="primary", use_container_width=True):
                 if perfil == 'PJ' and not validar_cnpj(st.session_state.dados_cadastrais.get('cnpj', '')):
-                    st.error("CNPJ obrigatório e válido.")
+                    st.error("CNPJ obrigatório e deve ter 14 dígitos.")
                 elif perfil == 'PF' and (not validar_cpf(st.session_state.dados_cadastrais.get('cpf', '')) or not nome):
                     st.error("CPF e Nome são obrigatórios.")
                 else:
                     st.session_state.step = 2
                     st.rerun()
-
-# (A etapa de dados operacionais permanece igual, apenas com CSS aplicado automaticamente)
-# Inclua as funções etapa_dados_operacionais() e etapa_upload() do código anterior, 
-# mas remova qualquer exibição de honorário do fluxo.
 
 def etapa_dados_operacionais():
     st.header("📊 Configuração Fiscal")
@@ -503,7 +559,6 @@ def etapa_sucesso():
     st.balloons()
     st.success("Recebemos suas informações. Nossa equipe da **BSB Contabilidade** analisará os documentos e enviará uma proposta personalizada em até 24 horas.")
     st.info(f"Um resumo foi enviado para o e-mail cadastrado: {st.session_state.dados_operacionais.get('contato_email', '')}")
-    # O honorário está em st.session_state.honorario_interno, acessível pelo contador no backend (não exposto aqui)
     if st.button("🔄 Nova Proposta"):
         for key in ['step', 'perfil', 'dados_cadastrais', 'dados_operacionais', 'documentos', 'honorario_interno']:
             if key in st.session_state:
